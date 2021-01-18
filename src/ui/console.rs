@@ -1,12 +1,12 @@
 use crate::core::Controller;
 
-pub struct TextUI<'a> {
+pub struct ConsoleUI<'a> {
     controller: Controller<'a>,
 }
 
-impl TextUI<'_> {
-    pub fn new(controller: Controller) -> TextUI {
-        TextUI { controller }
+impl ConsoleUI<'_> {
+    pub fn new(controller: Controller) -> ConsoleUI {
+        ConsoleUI { controller }
     }
 
     pub fn run(&mut self) {

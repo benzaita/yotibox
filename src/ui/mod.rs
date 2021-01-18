@@ -1,3 +1,5 @@
-mod text;
+mod console;
+mod physical;
 
-pub use text::TextUI;
+pub use console::ConsoleUI;
+pub use physical::PhysicalUI;
