@@ -1,4 +1,5 @@
 use log::info;
+use std::io::Result;
 use std::fs::File;
 use std::path::Path;
 use std::path::PathBuf;
@@ -15,10 +16,10 @@ impl SimpleAudioRepository {
 }
 
 impl AudioRepository for SimpleAudioRepository {
-    fn get_by_id(&self, id: &str) -> File {
+    fn get_by_id(&self, id: &str) -> Result<File> {
         let file_path = self.base_dir.join(Path::new(id)).with_extension("ogg");
         info!("Reading file {}", &file_path.to_str().unwrap());
 
-        File::open(file_path).unwrap()
+        File::open(file_path)
     }
 }

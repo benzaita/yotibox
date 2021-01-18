@@ -1,6 +1,6 @@
-use log::info;
 use crate::core::AudioPlayer;
 use crate::core::AudioRepository;
+use log::{error, info};
 
 #[derive(Debug)]
 enum ControllerState {
@@ -15,7 +15,10 @@ pub struct Controller<'a> {
 }
 
 impl<'a> Controller<'a> {
-    pub fn new(audio_repo: &'a dyn AudioRepository, audio_player: Box<dyn AudioPlayer>) -> Controller {
+    pub fn new(
+        audio_repo: &'a dyn AudioRepository,
+        audio_player: Box<dyn AudioPlayer>,
+    ) -> Controller {
         Controller {
             audio_repo,
             audio_player,
@@ -26,9 +29,14 @@ impl<'a> Controller<'a> {
     pub fn load(&mut self, id: &str) {
         match self.state {
             ControllerState::Idle => {
-                let audio_file = self.audio_repo.get_by_id(id);
-                self.audio_player.play_file(audio_file);
-                self.state = ControllerState::Playing;
+                let maybe_audio_file = self.audio_repo.get_by_id(id);
+                match maybe_audio_file {
+                    Err(cause) => error!("Failed to load '{}': {}", id, cause),
+                    Ok(audio_file) => {
+                        self.audio_player.play_file(audio_file);
+                        self.state = ControllerState::Playing;
+                    }
+                }
             }
             ControllerState::Playing => {
                 info!(
