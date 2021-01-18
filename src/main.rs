@@ -5,7 +5,12 @@ mod ui;
 use crate::adapters::SimpleAudioPlayer;
 use crate::adapters::SimpleAudioRepository;
 use crate::core::Controller;
-use crate::ui::JsonCommandsOverStdinUI;
+
+#[cfg(feature = "ui_console")]
+use crate::ui::ConsoleUI as UI;
+
+#[cfg(feature = "ui_json")]
+use crate::ui::JsonCommandsOverStdinUI as UI;
 
 
 fn main() {
@@ -16,5 +21,5 @@ fn main() {
     let audio_player = SimpleAudioPlayer::new();
     let controller = Controller::new(&audio_repo, Box::new(audio_player));
 
-    JsonCommandsOverStdinUI::new(controller).run();
+    UI::new(controller).run();
 }
