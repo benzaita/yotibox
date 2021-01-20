@@ -14,6 +14,7 @@ dialoguer = "0.7"
 serde_json = "1.0"
 
 [features]
-default = ["ui_json"]
+default = ["ui_rfid"]
 ui_json = []
 ui_console = []
+ui_rfid = []
