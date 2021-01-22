@@ -1,10 +1,8 @@
 use crate::core::Controller;
-use log::error;
-use std::io::Result;
 
-struct Command {
-    typ: String,
-    nfc_tag_id: String,
+enum Command {
+    Load(String),
+    Unload,
 }
 
 enum State {
@@ -27,57 +25,55 @@ impl RfidUI<'_> {
 
     pub fn run(&mut self) {
         loop {
-            let maybe_command = self.wait_for_command();
-
-            match maybe_command {
-                Err(cause) => error!("Failed to parse action: {}", cause),
-                Ok(action) => match action.typ.as_str() {
-                    "load" => self.controller.load(&action.nfc_tag_id),
-                    "unload" => self.controller.unload(),
-                    _ => {}
-                },
-            }
-        }
-    }
-
-    fn wait_for_command(&mut self) -> Result<Command> {
-        loop {
             let maybe_tag = poll_for_rfid_tag();
-            let maybe_command = match maybe_tag {
+            let (next_state, maybe_command) = match maybe_tag {
                 None => self.handle_no_tag(),
                 Some(tag_id) => self.handle_tag_present(tag_id),
             };
 
-            match maybe_command {
-                Some(command) => return Ok(command),
-                None => std::thread::sleep(std::time::Duration::from_millis(100)),
+            self.state = next_state;
+
+            if let Some(command) = maybe_command {
+                match command {
+                    Command::Load(nfc_tag_id) => self.controller.load(&nfc_tag_id),
+                    Command::Unload => self.controller.unload(),
+                }
             }
+
+            std::thread::sleep(std::time::Duration::from_millis(100));
         }
     }
 
-    fn handle_no_tag(&mut self) -> Option<Command> {
+    fn handle_no_tag(&self) -> (State, Option<Command>) {
         let maybe_command = match self.state {
             State::TagNotPresent => None,
-            State::TagPresent => Some(Command {
-                typ: "unload".to_string(),
-                nfc_tag_id: "".to_string(),
-            }),
+            State::TagPresent => Some(Command::Unload),
         };
 
-        self.state = State::TagNotPresent;
-        maybe_command
+        (State::TagNotPresent, maybe_command)
     }
 
-    fn handle_tag_present(&mut self, tag_id: &str) -> Option<Command> {
+    fn handle_tag_present(&self, tag_id: &str) -> (State, Option<Command>) {
         let maybe_command = match self.state {
-            State::TagNotPresent => Some(Command {
-                typ: "load".to_string(),
-                nfc_tag_id: tag_id.to_string(),
-            }),
+            State::TagNotPresent => Some(Command::Load(String::from(tag_id))),
             State::TagPresent => None,
         };
 
-        self.state = State::TagPresent;
-        maybe_command
+        (State::TagPresent, maybe_command)
+    }
+}
+
+fn poll_for_rfid_tag<'a>() -> Option<&'a str> {
+    // TODO actually read RFID tag
+
+    let action = dialoguer::Select::new()
+        .with_prompt("Action")
+        .items(&["Load 1", "Unload"])
+        .interact_opt()
+        .unwrap();
+
+    match action {
+        Some(0) => Some("1"),
+        _ => None,
     }
 }
