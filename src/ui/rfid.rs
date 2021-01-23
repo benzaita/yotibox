@@ -1,4 +1,6 @@
 use crate::core::Controller;
+use crate::adapters::rfid::RC522RfidController;
+use crate::adapters::rfid::RfidController;
 
 enum Command {
     Load(String),
@@ -13,6 +15,7 @@ enum State {
 pub struct RfidUI<'a> {
     controller: Controller<'a>,
     state: State,
+    rfid_controller: Box<dyn RfidController>,
 }
 
 impl RfidUI<'_> {
@@ -20,15 +23,16 @@ impl RfidUI<'_> {
         RfidUI {
             controller,
             state: State::TagNotPresent,
+            rfid_controller: Box::new(RC522RfidController { dev: "/dev/spi1" }),
         }
     }
 
     pub fn run(&mut self) {
         loop {
-            let maybe_tag = poll_for_rfid_tag();
+            let maybe_tag = self.rfid_controller.poll_for_tag().unwrap();
             let (next_state, maybe_command) = match maybe_tag {
                 None => self.handle_no_tag(),
-                Some(tag_id) => self.handle_tag_present(tag_id),
+                Some(tag_id) => self.handle_tag_present(&tag_id),
             };
 
             self.state = next_state;
@@ -60,20 +64,5 @@ impl RfidUI<'_> {
         };
 
         (State::TagPresent, maybe_command)
-    }
-}
-
-fn poll_for_rfid_tag<'a>() -> Option<&'a str> {
-    // TODO actually read RFID tag
-
-    let action = dialoguer::Select::new()
-        .with_prompt("Action")
-        .items(&["Load 1", "Unload"])
-        .interact_opt()
-        .unwrap();
-
-    match action {
-        Some(0) => Some("1"),
-        _ => None,
     }
 }
