@@ -1,1 +1,20 @@
 FROM rust:1.49-slim
+
+RUN rustup target add armv7-unknown-linux-gnueabihf
+
+RUN apt-get update \
+ && apt-get install -y curl xz-utils \
+ && cd /opt \
+ && curl -L -o toolchain.tar.xz https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf.tar.xz \
+ && tar xJf toolchain.tar.xz \
+ && cd /opt/gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf/bin \
+ && for f in *; do ln -snf $PWD/$f /usr/local/bin/$f; done
+
+RUN apt-get install -y make
+RUN dpkg --add-architecture armhf \
+ && apt-get update \
+ && apt-get install -y -q libasound2-dev:armhf
+
+RUN apt-get install -y pkg-config
+ENV PKG_CONFIG=/usr/bin/arm-linux-gnueabihf-pkg-config
+ENV PKG_CONFIG_LIBDIR_armv7_unknown_linux_gnueabihf=/usr/lib/arm-linux-gnueabihf/pkgconfig

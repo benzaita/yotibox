@@ -42,6 +42,7 @@ dependencies = [
  "env_logger",
  "log",
  "rodio",
+ "rppal",
  "serde_json",
 ]
 
@@ -566,6 +567,16 @@ dependencies = [
  "lazy_static",
  "lewton",
  "minimp3",
+]
+
+[[package]]
+name = "rppal"
+version = "0.11.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "137dbba1fb867daa27cda4c3cd6a11bca5bb5a1551f034cf9319b994846ddbe1"
+dependencies = [
+ "lazy_static",
+ "libc",
 ]
 
 [[package]]

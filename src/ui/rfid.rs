@@ -1,6 +1,6 @@
-use crate::core::Controller;
 use crate::adapters::rfid::RC522RfidController;
 use crate::adapters::rfid::RfidController;
+use crate::core::Controller;
 
 enum Command {
     Load(String),
@@ -18,16 +18,23 @@ pub struct RfidUI<'a> {
     rfid_controller: Box<dyn RfidController>,
 }
 
+impl Drop for RfidUI<'_> {
+    fn drop(&mut self) {
+        self.rfid_controller.cleanup().unwrap();
+    }
+}
+
 impl RfidUI<'_> {
     pub fn new(controller: Controller) -> RfidUI {
         RfidUI {
             controller,
             state: State::TagNotPresent,
-            rfid_controller: Box::new(RC522RfidController { dev: "/dev/spi1" }),
+            rfid_controller: Box::new(RC522RfidController::new("/dev/spi1")),
         }
     }
 
     pub fn run(&mut self) {
+        self.rfid_controller.init().unwrap();
         loop {
             let maybe_tag = self.rfid_controller.poll_for_tag().unwrap();
             let (next_state, maybe_command) = match maybe_tag {
