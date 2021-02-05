@@ -42,8 +42,8 @@ impl RC522RfidController<'_> {
         trace!("Setting GPIO pin {} to {}", pin, if enable {1} else {0});
         use rppal::gpio::Gpio;
 
-        let gpio = Gpio::new()?;
-        let mut pin = gpio.get(23)?.into_output();
+        let gpio = Gpio::new().unwrap();
+        let mut pin = gpio.get(23).unwrap().into_output();
         
         pin.set_high();
         
