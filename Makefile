@@ -1,11 +1,20 @@
 default:
 
+# Using gnueabi because it seems to be required for linking libasound (used by alsa-sys)
+TARGET=armv7-unknown-linux-gnueabihf
+
 # Some packages (looking at you, minimp3-sys) don't seem to respect the Cargo target.
 # This seems to force it to use the right compiler.
 CC=arm-none-linux-gnueabihf-gcc
 
-build:
-	cargo build --target armv7-unknown-linux-gnueabihf
+yotibox-builder-image:
+	docker build -t yotibox-builder:latest .
 
-clean:
-	cargo clean --target armv7-unknown-linux-gnueabihf
+build: yotibox-builder-image
+	cross build --target $(TARGET)
+
+clean: yotibox-builder-image
+	cross clean --target $(TARGET)
+
+run: yotibox-builder-image
+	cross run --target $(TARGET)
