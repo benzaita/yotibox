@@ -1,3 +1,4 @@
+pub mod config;
 mod simple_audio_player;
 mod simple_audio_repository;
 pub mod rfid;

@@ -1,6 +1,7 @@
 use crate::adapters::rfid::RC522RfidController;
 use crate::adapters::rfid::RfidController;
 use crate::core::Controller;
+use crate::core::config::Config;
 
 enum Command {
     Load(String),
@@ -16,6 +17,7 @@ pub struct RfidUI<'a> {
     controller: Controller<'a>,
     state: State,
     rfid_controller: Box<dyn RfidController>,
+    config: Box<dyn Config>,
 }
 
 impl Drop for RfidUI<'_> {
@@ -25,11 +27,12 @@ impl Drop for RfidUI<'_> {
 }
 
 impl RfidUI<'_> {
-    pub fn new(controller: Controller) -> RfidUI {
+    pub fn new(controller: Controller, config: Box<dyn Config>) -> RfidUI {
         RfidUI {
             controller,
             state: State::TagNotPresent,
-            rfid_controller: Box::new(RC522RfidController::new("/dev/spi1")),
+            rfid_controller: Box::new(RC522RfidController::new(config.rfid_spi_dev().unwrap())),
+            config,
         }
     }
 
@@ -51,7 +54,7 @@ impl RfidUI<'_> {
                 }
             }
 
-            std::thread::sleep(std::time::Duration::from_millis(100));
+            std::thread::sleep(std::time::Duration::from_millis(self.config.rfid_poll_ms().unwrap_or(1000)));
         }
     }
 
