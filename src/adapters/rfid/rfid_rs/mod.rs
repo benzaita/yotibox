@@ -93,15 +93,17 @@ pub enum Command {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum Error {
-    Io(io::Error), // Error from std::io
-    Communication, // Error in communication
-    Collision,     // Collission detected
-    Timeout,       // Timeout in communication.
-    NoRoom,        // A buffer is not big enough.
-    InternalError, // Internal error in the code. Should not happen.
-    Invalid,       // Invalid argument.
-    CrcWrong,      // The CRC_A does not match
-    MifareNack,    // A MIFARE PICC responded with NAK.
+    Io(io::Error),               // Error from std::io
+    Communication(&'static str), // Error in communication
+    Collision,                   // Collission detected
+    Timeout(&'static str),       // Timeout in communication.
+    NoRoom,                      // A buffer is not big enough.
+    InternalError,               // Internal error in the code. Should not happen.
+    Invalid,                     // Invalid argument.
+    CrcWrong,                    // The CRC_A does not match
+    MifareNack,                  // A MIFARE PICC responded with NAK.
+    UnexpectedChipVersion(u8),
+    UnexpectedSelfTestResponse(Vec<u8>),
 }
 
 impl From<io::Error> for Error {
@@ -113,9 +115,15 @@ impl From<io::Error> for Error {
 type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug)]
+enum Version {
+    V1_0,
+    V2_0,
+}
+
+#[derive(Debug)]
 pub struct Uid {
-    pub bytes: Vec<u8>,         // The UID can have 4, 7 or 10 bytes.
-        select_acknowledge: u8, // The SAK (Select acknowledge) byte returned from the PICC after successful selection.
+    pub bytes: Vec<u8>,     // The UID can have 4, 7 or 10 bytes.
+    select_acknowledge: u8, // The SAK (Select acknowledge) byte returned from the PICC after successful selection.
 }
 
 const MIFARE_ACK: u8 = 0xA;
@@ -137,6 +145,7 @@ impl MFRC522 {
     }
 
     pub fn read_register(&mut self, reg: Register) -> Result<u8> {
+        // trace!("Reading from {:?}", reg);
         let rval = MFRC522::register_to_readvalue(reg);
 
         let tx_buf = [rval, 0];
@@ -145,7 +154,7 @@ impl MFRC522 {
             let mut transfer = spidev::SpidevTransfer::read_write(&tx_buf, &mut rx_buf);
             self.spi.transfer(&mut transfer)?;
         }
-        // println!("Read {:#x?} from {:?}", rx_buf[1], reg);
+        // trace!("Read {:#x?} from {:?}", rx_buf[1], reg);
         Ok(rx_buf[1])
     }
 
@@ -161,7 +170,6 @@ impl MFRC522 {
             let mut transfer = spidev::SpidevTransfer::read_write(&tx_buf, &mut rx_buf);
             self.spi.transfer(&mut transfer)?;
         }
-        // println!("Read {:#x?} from {:?}", rx_buf, reg);
         rx_buf.remove(0);
         Ok(rx_buf)
     }
@@ -169,15 +177,70 @@ impl MFRC522 {
     pub fn write_register(&mut self, reg: Register, value: u8) -> Result<()> {
         let rval = MFRC522::register_to_writevalue(reg);
         self.spi.write_all(&[rval, value])?;
-        // println!("Wrote {:#x?} to {:?}", value, reg);
         Ok(())
     }
 
     pub fn write_multiple(&mut self, reg: Register, value: &[u8]) -> Result<()> {
         let rval = MFRC522::register_to_writevalue(reg);
         self.spi.write_all(&[&[rval], value].concat())?;
-        // println!("Wrote {:#x?} to {:?}", value, reg);
         Ok(())
+    }
+
+    fn get_chip_version(&mut self) -> Result<Version> {
+        match self.read_register(Register::VersionReg)? {
+            0x91 => Ok(Version::V1_0),
+            0x92 => Ok(Version::V2_0),
+            other => {
+                return Err(Error::UnexpectedChipVersion(other));
+            }
+        }
+    }
+
+    pub fn self_test(&mut self) -> Result<()> {
+        let version = self.get_chip_version()?;
+        let self_test_response: Vec<u8> = match version {
+            Version::V1_0 => vec![
+                0x00, 0xC6, 0x37, 0xD5, 0x32, 0xB7, 0x57, 0x5C, 0xC2, 0xD8, 0x7C, 0x4D, 0xD9, 0x70,
+                0xC7, 0x73, 0x10, 0xE6, 0xD2, 0xAA, 0x5E, 0xA1, 0x3E, 0x5A, 0x14, 0xAF, 0x30, 0x61,
+                0xC9, 0x70, 0xDB, 0x2E, 0x64, 0x22, 0x72, 0xB5, 0xBD, 0x65, 0xF4, 0xEC, 0x22, 0xBC,
+                0xD3, 0x72, 0x35, 0xCD, 0xAA, 0x41, 0x1F, 0xA7, 0xF3, 0x53, 0x14, 0xDE, 0x7E, 0x02,
+                0xD9, 0x0F, 0xB5, 0x5E, 0x25, 0x1D, 0x29, 0x79,
+            ],
+            Version::V2_0 => vec![
+                0x00, 0xEB, 0x66, 0xBA, 0x57, 0xBF, 0x23, 0x95, 0xD0, 0xE3, 0x0D, 0x3D, 0x27, 0x89,
+                0x5C, 0xDE, 0x9D, 0x3B, 0xA7, 0x00, 0x21, 0x5B, 0x89, 0x82, 0x51, 0x3A, 0xEB, 0x02,
+                0x0C, 0xA5, 0x00, 0x49, 0x7C, 0x84, 0x4D, 0xB3, 0xCC, 0xD2, 0x1B, 0x81, 0x5D, 0x48,
+                0x76, 0xD5, 0x71, 0x61, 0x21, 0xA9, 0x86, 0x96, 0x83, 0x38, 0xCF, 0x9D, 0x5B, 0x6D,
+                0xDC, 0x15, 0xBA, 0x3E, 0x7D, 0x95, 0x3B, 0x2F,
+            ],
+        };
+
+        // 1. Perform a soft reset.
+        self.reset()?;
+
+        // 2. Clear the internal buffer by writing 25 bytes of 00h and implement the Config command.
+        self.write_multiple(Register::FIFODataReg, &[0 as u8; 25])?;
+        self.write_register(Register::CommandReg, Command::Mem as u8)?;
+
+        // 3. Enable the self test by writing 09h to the AutoTestReg register.
+        self.write_register(Register::AutoTestReg, 0x09)?;
+
+        // 4. Write 00h to the FIFO buffer.
+        // 5. Start the self test with the CalcCRC command.
+        self.write_register(Register::FIFODataReg, 0x00)?;
+        self.write_register(Register::CommandReg, Command::CalcCRC as u8)?;
+        // 6. The self test is initiated.
+
+        thread::sleep(time::Duration::from_millis(200));
+
+        // 7. When the self test has completed, the FIFO buffer contains the following 64 bytes:
+        let response = self.read_multiple(Register::FIFODataReg, self_test_response.len())?;
+
+        if response.eq(&self_test_response) {
+            return Ok(());
+        } else {
+            return Err(Error::UnexpectedSelfTestResponse(response));
+        }
     }
 
     pub fn init(&mut self) -> Result<()> {
@@ -206,7 +269,9 @@ impl MFRC522 {
         loop {
             thread::sleep(time::Duration::from_millis(50));
             let cmd_val = self.read_register(Register::CommandReg)?;
-            if cmd_val & (1 << 4) == 0 || count >= 3 {
+            if cmd_val & (1 << 4) == 0 {
+                break;
+            } else if count >= 3 {
                 break;
             }
             count += 1;
@@ -242,7 +307,7 @@ impl MFRC522 {
         self.write_register(Register::CommandReg, Command::CalcCRC as u8)?;
 
         // Wait for the CRC calculation to complete. Each iteration of the while-loop takes 17.73us.
-        for _ in 0..5000 {
+        for _ in 0..10000 {
             let n = self.read_register(Register::DivIrqReg)?;
             if n & 0x04 != 0 {
                 self.write_register(Register::CommandReg, Command::Idle as u8)?;
@@ -251,7 +316,9 @@ impl MFRC522 {
                 return Ok([res_low, res_high]);
             }
         }
-        Err(Error::Timeout)
+        Err(Error::Timeout(
+            "Timed out waiting for CRC calculation to complete",
+        ))
     }
 
     /// Transfers data to the MFRC522 FIFO, executes a command,\
@@ -299,21 +366,25 @@ impl MFRC522 {
             }
             if n & 0x01 != 0 {
                 // Timer interrupt - nothing received in 25ms
-                return Err(Error::Timeout);
+                return Err(Error::Timeout("Nothing received from PICC"));
             }
             i -= 1;
         }
 
         // 35.7ms and nothing happend. Communication with the MFRC522 might be down.
         if i == 0 {
-            return Err(Error::Timeout);
+            return Err(Error::Timeout(
+                "Communication with the MFRC522 might be down",
+            ));
         }
 
         // Stop now if any errors except collisions were detected.
         let error_reg_value = self.read_register(Register::ErrorReg)?; // ErrorReg[7..0] bits are: WrErr TempErr reserved BufferOvfl CollErr CRCErr ParityErr ProtocolErr
         if error_reg_value & 0x13 != 0 {
             // BufferOvfl ParityErr ProtocolErr
-            return Err(Error::Communication);
+            return Err(Error::Communication(
+                "BufferOvfl/ParityErr/ProtocolErr while communicating with PICC",
+            ));
         }
 
         let mut recv_valid_bits = 0u8;
@@ -433,7 +504,7 @@ impl MFRC522 {
 
         if picc_response.data.len() != 2 || picc_response.valid_bits != 0 {
             // ATQA must be exactly 16 bits.
-            return Err(Error::Communication);
+            return Err(Error::Communication("ATQA was not exactly 16 bits"));
         }
 
         Ok(picc_response.data)
@@ -692,7 +763,9 @@ impl MFRC522 {
             // Check response SAK (Select Acknowledge)
             if picc_response.data.len() != 3 || tx_last_bits != 0 {
                 // SAK must be exactly 24 bits (1 byte + CRC_A).
-                return Err(Error::Communication);
+                return Err(Error::Communication(
+                    "SAK must be exactly 24 bits (1 byte + CRC_A)",
+                ));
             }
             // Verify CRC_A - do our own calculation and store the control in buffer[2..3] - those bytes are not needed anymore.
             let crc_buf = self.calculate_crc(&picc_response.data[0..1])?;
@@ -725,7 +798,7 @@ impl MFRC522 {
         //		HLTA command, this response shall be interpreted as 'not acknowledge'.
         // We interpret that this way: Only STATUS_TIMEOUT is a success.
         match self.transceive_data(&buffer, 0, 0, 0, false) {
-            Err(Error::Timeout) => Ok(()),
+            Err(Error::Timeout(_)) => Ok(()),
             Ok(_) => Err(Error::Invalid),
             Err(e) => Err(e),
         }
@@ -837,7 +910,6 @@ impl MFRC522 {
      * @return STATUS_OK on success, STATUS_??? otherwise.
      */
     pub fn mifare_transceive(&mut self, send_data: &[u8], accept_timeout: bool) -> Result<()> {
-
         if send_data.len() > 16 {
             return Err(Error::Invalid);
         }
@@ -860,7 +932,7 @@ impl MFRC522 {
             false,
         ) {
             Ok(r) => r,
-            Err(Error::Timeout) if accept_timeout => return Ok(()),
+            Err(Error::Timeout(_)) if accept_timeout => return Ok(()),
             Err(e) => return Err(e),
         };
 

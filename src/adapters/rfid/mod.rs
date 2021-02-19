@@ -46,6 +46,9 @@ impl RC522RfidController {
 
 impl RfidController for RC522RfidController {
     fn init(&mut self) -> Result<()> {
+        debug!("Running self test of RC522");
+        self.mfrc522.self_test()?;
+
         debug!("Initializing RC522");
         self.mfrc522.init()?;
         Ok(())
@@ -61,7 +64,7 @@ impl RfidController for RC522RfidController {
 
         if let Err(error) = new_card {
             match error {
-                rfid_rs::Error::Timeout => {
+                rfid_rs::Error::Timeout(_) => {
                     debug!("No card present");
                     return Ok(None);
                 }
