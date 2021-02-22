@@ -31,7 +31,10 @@ impl<'a> Controller<'a> {
             ControllerState::Idle => {
                 let maybe_audio_file = self.audio_repo.get_by_id(id);
                 match maybe_audio_file {
-                    Err(cause) => error!("Failed to load '{}': {}", id, cause),
+                    Err(cause) => {
+                        error!("Failed to load '{}': {}", id, cause);
+                        self.audio_repo.create_stub_for_id(id).unwrap();
+                    },
                     Ok(audio_file) => {
                         self.audio_player.play_file(audio_file);
                         self.state = ControllerState::Playing;

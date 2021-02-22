@@ -8,6 +8,7 @@ pub use controller::Controller;
 
 pub trait AudioRepository {
     fn get_by_id(&self, id: &str) -> Result<File>;
+    fn create_stub_for_id(&self, id: &str) -> Result<()>;
 }
 
 pub trait AudioPlayer {
