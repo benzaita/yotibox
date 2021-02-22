@@ -10,9 +10,6 @@ use crate::core::Controller;
 #[cfg(feature = "ui_console")]
 use crate::ui::ConsoleUI as UI;
 
-#[cfg(feature = "ui_json")]
-use crate::ui::JsonCommandsOverStdinUI as UI;
-
 #[cfg(feature = "ui_rfid")]
 use crate::ui::RfidUI as UI;
 

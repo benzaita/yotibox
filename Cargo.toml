@@ -11,12 +11,10 @@ log = "0.4"
 env_logger = "0.8"
 rodio = "0.10"
 dialoguer = "0.7"
-serde_json = "1.0"
-rppal = "*"
+tinyjson = "2"
 spidev = "*"
 
 [features]
 default = ["ui_rfid"]
-ui_json = []
 ui_console = []
 ui_rfid = []
