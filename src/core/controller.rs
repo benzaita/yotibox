@@ -29,12 +29,13 @@ impl<'a> Controller<'a> {
     pub fn load(&mut self, id: &str) {
         match self.state {
             ControllerState::Idle => {
+                info!("Playing audio for id: {}", id);
                 let maybe_audio_file = self.audio_repo.get_by_id(id);
                 match maybe_audio_file {
                     Err(cause) => {
                         error!("Failed to load '{}': {}", id, cause);
                         self.audio_repo.create_stub_for_id(id).unwrap();
-                    },
+                    }
                     Ok(audio_file) => {
                         self.audio_player.play_file(audio_file);
                         self.state = ControllerState::Playing;
@@ -59,6 +60,7 @@ impl<'a> Controller<'a> {
                 );
             }
             ControllerState::Playing => {
+                info!("Stopping playback");
                 self.audio_player.stop();
                 self.state = ControllerState::Idle;
             }

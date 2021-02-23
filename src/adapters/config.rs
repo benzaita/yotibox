@@ -1,7 +1,7 @@
 use crate::core::config::Config;
-use tinyjson::JsonValue;
 use std::fs;
 use std::path::Path;
+use tinyjson::JsonValue;
 
 pub struct JsonConfig {
     root: JsonValue,
@@ -28,6 +28,13 @@ impl Config for JsonConfig {
     fn rfid_poll_ms(&self) -> Option<u64> {
         match self.root["rfid_poll_ms"] {
             JsonValue::Number(n) => Some(n as u64),
+            _ => None,
+        }
+    }
+
+    fn audio_base_dir(&self) -> Option<&str> {
+        match &self.root["audio_base_dir"] {
+            JsonValue::String(s) => Some(&s),
             _ => None,
         }
     }

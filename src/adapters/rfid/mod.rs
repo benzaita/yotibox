@@ -117,8 +117,18 @@ impl RfidController for RC522RfidController {
         self.mfrc522.halt_a()?;
         self.mfrc522.stop_crypto1()?;
 
-        trace!("All seems ok. Panicing");
-        unimplemented!();
+        let uid_hex_str = format!("{:x}", uid);
+        Ok(Some(uid_hex_str))
+    }
+}
+
+impl std::fmt::LowerHex for rfid_rs::Uid {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        for b in &self.bytes {
+            write!(f, "{:02x}", b)?;
+        }
+
+        Ok(())
     }
 }
 

@@ -18,3 +18,6 @@ clean: yotibox-builder-image
 
 run: yotibox-builder-image
 	cross run --target $(TARGET)
+
+scp-to-rpi: build target/rpi-metadata/ip
+	scp target/armv7-unknown-linux-gnueabihf/debug/app pi@$(shell cat target/rpi-metadata/ip):./yotibox/app
