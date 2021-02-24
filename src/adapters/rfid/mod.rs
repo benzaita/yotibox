@@ -27,7 +27,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub trait RfidController {
     fn init(&mut self) -> Result<()>;
     fn cleanup(&mut self) -> Result<()>;
-    fn poll_for_tag(&mut self) -> Result<Option<String>>;
+    fn read_id_from_idle_picc(&mut self) -> Result<Option<String>>;
+    fn read_if_from_halted_picc(&mut self) -> Result<Option<String>>;
 }
 
 pub struct RC522RfidController {
@@ -58,7 +59,7 @@ impl RfidController for RC522RfidController {
         Ok(())
     }
 
-    fn poll_for_tag(&mut self) -> Result<Option<String>> {
+    fn read_id_from_idle_picc(&mut self) -> Result<Option<String>> {
         trace!("new_card_present()");
         let new_card = self.mfrc522.new_card_present();
 
@@ -79,43 +80,35 @@ impl RfidController for RC522RfidController {
         let uid = self.mfrc522.read_card_serial()?;
         trace!("read_card_serial() == {:?}", uid);
 
-        let mut block = 4;
-        let len = 18;
-        let key: rfid_rs::MifareKey = [0xffu8; 6];
-        let command = rfid_rs::picc::Command::MfAuthKeyA;
-
-        trace!(
-            "authenticate(command={}, block={}, key={}, uid={})",
-            "(command)",
-            block,
-            "(key)",
-            "(uid)"
-        );
-        self.mfrc522.authenticate(command, block, key, &uid)?;
-        trace!("authenticate(...) == Ok");
-
-        trace!("mifare_read(block={}, len={})", block, len);
-        let response = self.mfrc522.mifare_read(block, len)?;
-        trace!("mifare_read(...) == {:?}", response.data);
-
-        block = 1;
-
-        trace!(
-            "authenticate(command={}, block={}, key={}, uid={})",
-            "(command)",
-            block,
-            "(key)",
-            "(uid)"
-        );
-        self.mfrc522.authenticate(command, block, key, &uid)?;
-        trace!("authenticate(...) == Ok");
-
-        trace!("mifare_read(block={}, len={})", block, len);
-        let response = self.mfrc522.mifare_read(block, len)?;
-        trace!("mifare_read(...) == {:?}", response.data);
-
+        trace!("halt_a()");
         self.mfrc522.halt_a()?;
-        self.mfrc522.stop_crypto1()?;
+
+        let uid_hex_str = format!("{:x}", uid);
+        Ok(Some(uid_hex_str))
+    }
+
+    fn read_if_from_halted_picc(&mut self) -> Result<Option<String>> {
+        trace!("wakeup_a()");
+        let res = self.mfrc522.wakeup_a(2);
+        if let Err(error) = res {
+            match error {
+                rfid_rs::Error::Timeout(_) => {
+                    debug!("No card present");
+                    return Ok(None);
+                }
+                _ => {
+                    trace!("wakeup_a() == Err({:?})", error);
+                    return Err(Error::from(error));
+                }
+            }
+        }
+
+        trace!("read_card_serial()");
+        let uid = self.mfrc522.read_card_serial()?;
+        trace!("read_card_serial() == {:?}", uid);
+
+        trace!("halt_a()");
+        self.mfrc522.halt_a()?;
 
         let uid_hex_str = format!("{:x}", uid);
         Ok(Some(uid_hex_str))

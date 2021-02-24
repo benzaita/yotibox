@@ -1,7 +1,8 @@
+use log::{error};
 use crate::adapters::rfid::RC522RfidController;
 use crate::adapters::rfid::RfidController;
-use crate::core::Controller;
 use crate::core::config::Config;
+use crate::core::Controller;
 
 enum Command {
     Load(String),
@@ -39,10 +40,18 @@ impl RfidUI<'_> {
     pub fn run(&mut self) {
         self.rfid_controller.init().unwrap();
         loop {
-            let maybe_tag = self.rfid_controller.poll_for_tag().unwrap();
+            let maybe_tag = match self.state {
+                State::TagNotPresent => self.rfid_controller.read_id_from_idle_picc(),
+                State::TagPresent => self.rfid_controller.read_if_from_halted_picc(),
+            };
+
             let (next_state, maybe_command) = match maybe_tag {
-                None => self.handle_no_tag(),
-                Some(tag_id) => self.handle_tag_present(&tag_id),
+                Ok(None) => self.handle_no_tag(),
+                Ok(Some(tag_id)) => self.handle_tag_present(&tag_id),
+                Err(e) => {
+                    error!("Encountered error: {:?}", e);
+                    self.handle_no_tag()
+                },
             };
 
             self.state = next_state;
@@ -54,7 +63,9 @@ impl RfidUI<'_> {
                 }
             }
 
-            std::thread::sleep(std::time::Duration::from_millis(self.config.rfid_poll_ms().unwrap_or(1000)));
+            std::thread::sleep(std::time::Duration::from_millis(
+                self.config.rfid_poll_ms().unwrap_or(1000),
+            ));
         }
     }
 
