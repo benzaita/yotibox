@@ -21,7 +21,7 @@ fn main() {
     let audio_repo_base_dir = std::path::PathBuf::from(config.audio_base_dir().unwrap());
     let audio_repo = SimpleAudioRepository::new(audio_repo_base_dir);
     let audio_player = SimpleAudioPlayer::new();
-    let controller = Controller::new(&audio_repo, Box::new(audio_player));
+    let controller = Controller::new(&audio_repo, &audio_player);
 
-    UI::new(controller, Box::from(config)).run();
+    UI::new(&controller, &config).run();
 }

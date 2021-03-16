@@ -12,6 +12,6 @@ pub trait AudioRepository {
 }
 
 pub trait AudioPlayer {
-    fn play_file(&mut self, file: File);
+    fn play_file(&self, file: File);
     fn stop(&self);
 }

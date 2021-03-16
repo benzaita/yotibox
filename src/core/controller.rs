@@ -1,6 +1,8 @@
 use crate::core::AudioPlayer;
 use crate::core::AudioRepository;
 use log::{error, info};
+use std::sync::Arc;
+use std::sync::Mutex;
 
 #[derive(Debug)]
 enum ControllerState {
@@ -8,26 +10,28 @@ enum ControllerState {
     Playing,
 }
 
+#[derive(Clone)]
 pub struct Controller<'a> {
     audio_repo: &'a dyn AudioRepository,
-    audio_player: Box<dyn AudioPlayer>,
-    state: ControllerState,
+    audio_player: &'a dyn AudioPlayer,
+    state: Arc<Mutex<ControllerState>>,
 }
 
 impl<'a> Controller<'a> {
     pub fn new(
         audio_repo: &'a dyn AudioRepository,
-        audio_player: Box<dyn AudioPlayer>,
-    ) -> Controller {
+        audio_player: &'a dyn AudioPlayer,
+    ) -> Controller<'a> {
         Controller {
             audio_repo,
             audio_player,
-            state: ControllerState::Idle,
+            state: Arc::new(Mutex::new(ControllerState::Idle)),
         }
     }
 
-    pub fn load(&mut self, id: &str) {
-        match self.state {
+    pub fn load(&self, id: &str) {
+        let mut guarded_state = self.state.lock().unwrap();
+        match *guarded_state {
             ControllerState::Idle => {
                 info!("Playing audio for id: {}", id);
                 let maybe_audio_file = self.audio_repo.get_by_id(id);
@@ -38,7 +42,7 @@ impl<'a> Controller<'a> {
                     }
                     Ok(audio_file) => {
                         self.audio_player.play_file(audio_file);
-                        self.state = ControllerState::Playing;
+                        *guarded_state = ControllerState::Playing;
                     }
                 }
             }
@@ -51,8 +55,9 @@ impl<'a> Controller<'a> {
         }
     }
 
-    pub fn unload(&mut self) {
-        match self.state {
+    pub fn unload(&self) {
+        let mut guarded_state = self.state.lock().unwrap();
+        match *guarded_state {
             ControllerState::Idle => {
                 info!(
                     "Ignoring request to load since alredy in {:?} state",
@@ -62,12 +67,12 @@ impl<'a> Controller<'a> {
             ControllerState::Playing => {
                 info!("Stopping playback");
                 self.audio_player.stop();
-                self.state = ControllerState::Idle;
+                *guarded_state = ControllerState::Idle;
             }
         }
     }
 
-    pub fn reset(&mut self) {
+    pub fn reset(&self) {
         self.unload();
     }
 }

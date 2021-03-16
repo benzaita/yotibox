@@ -1,11 +1,12 @@
+use crate::core::config::Config;
 use crate::core::Controller;
 
 pub struct ConsoleUI<'a> {
-    controller: Controller<'a>,
+    controller: &'a Controller<'a>,
 }
 
-impl ConsoleUI<'_> {
-    pub fn new(controller: Controller) -> ConsoleUI {
+impl<'a> ConsoleUI<'a> {
+    pub fn new(controller: &'a Controller<'a>, _: &'a dyn Config) -> Self {
         ConsoleUI { controller }
     }
 

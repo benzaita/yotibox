@@ -15,10 +15,10 @@ enum State {
 }
 
 pub struct RfidUI<'a> {
-    controller: Controller<'a>,
+    controller: &'a Controller<'a>,
     state: State,
     rfid_controller: Box<dyn RfidController>,
-    config: Box<dyn Config>,
+    config: &'a dyn Config,
 }
 
 impl Drop for RfidUI<'_> {
@@ -27,8 +27,8 @@ impl Drop for RfidUI<'_> {
     }
 }
 
-impl RfidUI<'_> {
-    pub fn new(controller: Controller, config: Box<dyn Config>) -> RfidUI {
+impl<'a> RfidUI<'a> {
+    pub fn new(controller: &'a Controller<'a>, config: &'a dyn Config) -> RfidUI<'a> {
         RfidUI {
             controller,
             state: State::TagNotPresent,

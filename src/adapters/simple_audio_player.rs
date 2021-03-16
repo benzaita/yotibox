@@ -16,11 +16,12 @@ impl SimpleAudioPlayer {
 }
 
 impl AudioPlayer for SimpleAudioPlayer {
-    fn play_file(&mut self, file: File) {
+    fn play_file(&self, file: File) {
         let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
 
         // Why overwrite? It seems like Sink.append() after Sink.stop() does not play any sound
-        self.sink = rodio::Sink::new(&self.device);
+        // TODO this requires `&mut self`
+        // self.sink = rodio::Sink::new(&self.device);
 
         self.sink.append(source);
     }
