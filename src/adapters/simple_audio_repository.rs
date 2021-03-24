@@ -9,6 +9,7 @@ use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 
+#[derive(Clone)]
 pub struct SimpleAudioRepository {
     base_dir: PathBuf,
     audio_extension: String,

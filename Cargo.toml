@@ -13,8 +13,3 @@ rodio = "0.10"
 dialoguer = "0.7"
 tinyjson = "2"
 spidev = "*"
-
-[features]
-default = ["ui_rfid"]
-ui_console = []
-ui_rfid = []

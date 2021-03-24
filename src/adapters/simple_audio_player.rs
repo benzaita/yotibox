@@ -1,8 +1,15 @@
+use crate::core::AudioPlayer;
 use std::fs::File;
 use std::io::BufReader;
-use crate::core::AudioPlayer;
+use std::sync::Arc;
+use std::sync::Mutex;
 
+#[derive(Clone)]
 pub struct SimpleAudioPlayer {
+    state: Arc<Mutex<State>>,
+}
+
+struct State {
     sink: rodio::Sink,
     device: rodio::Device,
 }
@@ -11,7 +18,9 @@ impl SimpleAudioPlayer {
     pub fn new() -> SimpleAudioPlayer {
         let device = rodio::default_output_device().unwrap();
         let sink = rodio::Sink::new(&device);
-        SimpleAudioPlayer { device, sink }
+        SimpleAudioPlayer {
+            state: Arc::new(Mutex::new(State { device, sink })),
+        }
     }
 }
 
@@ -23,10 +32,10 @@ impl AudioPlayer for SimpleAudioPlayer {
         // TODO this requires `&mut self`
         // self.sink = rodio::Sink::new(&self.device);
 
-        self.sink.append(source);
+        self.state.lock().unwrap().sink.append(source);
     }
 
     fn stop(&self) {
-        self.sink.stop();
+        self.state.lock().unwrap().sink.stop();
     }
 }

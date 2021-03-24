@@ -49,7 +49,7 @@ impl<'a> Controller<'a> {
             ControllerState::Playing => {
                 info!(
                     "Ignoring request to load since alredy in {:?} state",
-                    self.state
+                    *guarded_state
                 );
             }
         }
@@ -60,8 +60,8 @@ impl<'a> Controller<'a> {
         match *guarded_state {
             ControllerState::Idle => {
                 info!(
-                    "Ignoring request to load since alredy in {:?} state",
-                    self.state
+                    "Ignoring request to unload since alredy in {:?} state",
+                    *guarded_state
                 );
             }
             ControllerState::Playing => {

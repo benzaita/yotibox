@@ -3,6 +3,7 @@ use std::fs;
 use std::path::Path;
 use tinyjson::JsonValue;
 
+#[derive(Clone)]
 pub struct JsonConfig {
     root: JsonValue,
 }
