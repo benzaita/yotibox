@@ -1,13 +1,8 @@
-use log::{error};
 use crate::adapters::rfid::RC522RfidController;
 use crate::adapters::rfid::RfidController;
 use crate::core::config::Config;
-use crate::core::Controller;
-
-enum Command {
-    Load(String),
-    Unload,
-}
+use crate::core::Command;
+use log::error;
 
 enum State {
     TagNotPresent,
@@ -15,7 +10,6 @@ enum State {
 }
 
 pub struct RfidUI<'a> {
-    controller: Controller<'a>,
     state: State,
     rfid_controller: Box<dyn RfidController>,
     config: &'a dyn Config,
@@ -28,16 +22,15 @@ impl Drop for RfidUI<'_> {
 }
 
 impl<'a> RfidUI<'a> {
-    pub fn new(controller: Controller<'a>, config: &'a dyn Config) -> RfidUI<'a> {
+    pub fn new(config: &'a dyn Config) -> RfidUI<'a> {
         RfidUI {
-            controller,
             state: State::TagNotPresent,
             rfid_controller: Box::new(RC522RfidController::new(config.rfid_spi_dev().unwrap())),
             config,
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self, tx: std::sync::mpsc::Sender<Command>) {
         self.rfid_controller.init().unwrap();
         loop {
             let maybe_tag = match self.state {
@@ -51,16 +44,13 @@ impl<'a> RfidUI<'a> {
                 Err(e) => {
                     error!("Encountered error: {:?}", e);
                     self.handle_no_tag()
-                },
+                }
             };
 
             self.state = next_state;
 
             if let Some(command) = maybe_command {
-                match command {
-                    Command::Load(nfc_tag_id) => self.controller.load(&nfc_tag_id),
-                    Command::Unload => self.controller.unload(),
-                }
+                tx.send(command).unwrap();
             }
 
             std::thread::sleep(std::time::Duration::from_millis(

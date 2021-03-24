@@ -1,25 +1,24 @@
-use crate::core::config::Config;
-use crate::core::Controller;
+use crate::core::Command;
 
-pub struct ConsoleUI<'a> {
-    controller: Controller<'a>,
+pub struct ConsoleUI {
 }
 
-impl<'a> ConsoleUI<'a> {
-    pub fn new(controller: Controller<'a>, _: &'a dyn Config) -> Self {
-        ConsoleUI { controller }
+impl ConsoleUI {
+    pub fn new() -> Self {
+        ConsoleUI { }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self, tx: std::sync::mpsc::Sender<Command>) {
         loop {
             let action_index = self.prompt_for_action(&["Load 1", "Load 2", "Unload", "Reset"]);
-            match action_index {
-                Some(0) => self.controller.load("1"),
-                Some(1) => self.controller.load("2"),
-                Some(2) => self.controller.unload(),
-                Some(3) => self.controller.reset(),
-                _ => {}
-            }
+            let maybe_command = match action_index {
+                Some(0) => Some(Command::Load("1".into())),
+                Some(1) => Some(Command::Load("2".into())),
+                Some(2) => Some(Command::Unload),
+                _ => None
+            };
+
+            maybe_command.map(|c| tx.send(c));
         }
     }
 

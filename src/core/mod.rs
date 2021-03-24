@@ -15,3 +15,9 @@ pub trait AudioPlayer {
     fn play_file(&self, file: File);
     fn stop(&self);
 }
+
+#[derive(Debug)]
+pub enum Command {
+    Load(String),
+    Unload,
+}
